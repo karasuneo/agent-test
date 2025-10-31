@@ -114,8 +114,21 @@ def test_agent_with_adk_app():
             print(f"\n【確認フェーズ検出】")
             print(f"エージェントが確認を求めています。自動的に承認します...")
 
-            # 承認メッセージを送信
-            confirmation_message = "はい、お願いします"
+            # 承認メッセージのバリエーション（10種類）
+            confirmation_messages = [
+                "はい",
+                "Yes",
+                "お願い",
+                "大丈夫",
+                "ok",
+                "うん", 
+                "はい、大丈夫です",
+                "はい、進めてください",
+                "問題ありません",
+            ]
+            confirmation_message = random.choice(confirmation_messages)
+            print(f"承認メッセージ: 「{confirmation_message}」")
+
             response_stream2 = app.stream_query(session_id=session_id, user_id=user_id, message=confirmation_message)
 
             # 2回目の応答を収集
