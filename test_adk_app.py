@@ -318,6 +318,10 @@ def test_agent_with_adk_app(test_case_id: int = 1):
         print(f"step1呼び出し: {'✅' if step1_called else '❌'}")
         print(f"step2呼び出し: {'✅' if step2_called else '❌'}")
 
+        # 検証結果を判定
+        verification_result = "判定不可"
+        test_result = None
+
         if step2_called and step2_client_name:
             print("\n⚠️ 【最重要検証ポイント】")
             print(f"  最初のユーザー入力: 「{random_client}」")
@@ -325,20 +329,56 @@ def test_agent_with_adk_app(test_case_id: int = 1):
 
             if step2_client_name == random_client:
                 print("  ✅ 一致: 顧問先情報が正しく渡されています！")
-                return True
+                verification_result = "一致"
+                test_result = True
             else:
                 print("  ❌ 不一致: 顧問先情報が正しく渡されていません！")
-                return False
+                verification_result = "不一致"
+                test_result = False
         else:
             print("\n⚠️ step2が呼び出されませんでした")
             print("エージェントが指示通りに動作しなかった可能性があります")
-            return None
+            verification_result = "判定不可"
+            test_result = None
+
+        # CSV記録
+        save_test_result_to_csv(
+            test_case_id=test_case_id,
+            expected_client_name=random_client,
+            step1_called=step1_called,
+            step1_client_name=step1_client_name,
+            step1_result=step1_result or {},
+            step2_called=step2_called,
+            step2_client_name=step2_client_name,
+            step2_result=step2_result or {},
+            verification_result=verification_result,
+            confirmation_message=confirmation_message,
+            error=""
+        )
+
+        return test_result
 
     except Exception as e:
-        print(f"\n❌ エラーが発生しました: {e}")
-        print(f"エラータイプ: {type(e).__name__}")
+        error_msg = f"{type(e).__name__}: {str(e)}"
+        print(f"\n❌ エラーが発生しました: {error_msg}")
         import traceback
         traceback.print_exc()
+
+        # エラー時もCSV記録
+        save_test_result_to_csv(
+            test_case_id=test_case_id,
+            expected_client_name=random_client,
+            step1_called=False,
+            step1_client_name="",
+            step1_result={},
+            step2_called=False,
+            step2_client_name="",
+            step2_result={},
+            verification_result="エラー",
+            confirmation_message=confirmation_message,
+            error=error_msg
+        )
+
         return False
 
 
@@ -355,7 +395,7 @@ def test_multiple_cases(num_tests: int = 3):
         print(f"テストケース {i + 1}/{num_tests}")
         print(f"{'=' * 70}")
 
-        result = test_agent_with_adk_app()
+        result = test_agent_with_adk_app(test_case_id=i + 1)
         results.append(result)
 
         if result is True:
