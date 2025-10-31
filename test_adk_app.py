@@ -1,6 +1,7 @@
 """vertexai.preview.reasoning_engines.AdkAppを使ったroot_agentテスト"""
 
 import random
+import uuid
 from companies_12000_list import companies
 from src.gov_doc_parser import root_agent
 from vertexai.preview import reasoning_engines
@@ -118,8 +119,8 @@ def test_agent_with_adk_app():
         print(f"\n【エージェント実行開始】")
         print("root_agentにメッセージを送信します...")
 
-        # セッションを作成
-        session_id = f"test_session_{random.randint(1000, 9999)}"
+        # セッションを作成（UUID形式）
+        session_id = f"test_{uuid.uuid4()}"
         user_id = "test_user"
         app.create_session(session_id=session_id, user_id=user_id)
 
