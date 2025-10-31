@@ -25,3 +25,9 @@ dev = [
     "ruff>=0.14.3",
 ]
 
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+ignore = ["E402"]  # Module level import not at top of file
+
