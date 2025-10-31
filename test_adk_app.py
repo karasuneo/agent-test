@@ -2,8 +2,10 @@
 
 import csv
 import random
+import threading
 import uuid
 import warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from companies_12000_list import companies
@@ -18,6 +20,9 @@ tool_calls = []
 
 # CSVファイルのパス
 CSV_FILE = Path(__file__).parent / "test_results.csv"
+
+# CSV書き込み用のロック
+csv_lock = threading.Lock()
 
 
 def save_test_result_to_csv(
@@ -67,9 +72,6 @@ def save_test_result_to_csv(
         "error"
     ]
 
-    # ファイルが存在しない場合はヘッダーを書き込む
-    file_exists = CSV_FILE.exists()
-
     # データ行を作成
     row = {
         "test_case_id": test_case_id,
@@ -88,18 +90,23 @@ def save_test_result_to_csv(
         "error": error
     }
 
-    # CSVファイルに追記
-    with open(CSV_FILE, mode='a', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=headers)
+    # CSV書き込みをスレッドセーフにする
+    with csv_lock:
+        # ファイルが存在しない場合はヘッダーを書き込む
+        file_exists = CSV_FILE.exists()
 
-        # ヘッダーを書き込む（ファイルが新規作成の場合のみ）
-        if not file_exists:
-            writer.writeheader()
+        # CSVファイルに追記
+        with open(CSV_FILE, mode='a', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=headers)
 
-        # データ行を書き込む
-        writer.writerow(row)
+            # ヘッダーを書き込む（ファイルが新規作成の場合のみ）
+            if not file_exists:
+                writer.writeheader()
 
-    print(f"\n✅ テスト結果をCSVに記録しました: {CSV_FILE}")
+            # データ行を書き込む
+            writer.writerow(row)
+
+        print(f"\n✅ テスト結果をCSVに記録しました: {CSV_FILE}")
 
 
 def format_agent_response(response: dict) -> str:
@@ -187,11 +194,11 @@ def test_agent_with_adk_app(test_case_id: int = 1):
     Args:
         test_case_id: テストケース番号（CSV記録用）
     """
-    global tool_calls
+    # ローカル変数にして並列実行をスレッドセーフにする
     tool_calls = []
 
     print("=" * 70)
-    print("root_agent AdkAppテスト")
+    print(f"root_agent AdkAppテスト (テストケース {test_case_id})")
     print("=" * 70)
 
     # ランダムに顧問先を選択
@@ -202,14 +209,42 @@ def test_agent_with_adk_app(test_case_id: int = 1):
     print("💡 この値がstep2に渡されるべき値です")
 
     # ユーザーの入力をシミュレーション
-    user_message = f"顧問先「{random_client}」の労働保険申告を自動入力してください"
+    user_message = f"顧問先{random_client}の情報を処理してください。"
 
     print("\n【ユーザー入力】")
     print(f"メッセージ: {user_message}")
 
     # CSV記録用の変数を初期化
     confirmation_message = ""
-    error_message = ""
+
+    # このテストケース専用のコールバック関数を定義（ローカル変数にアクセス）
+    def local_tool_callback(tool, **kwargs):
+        """ツール呼び出し後のコールバック（ローカル版）"""
+        # 引数を柔軟に取得
+        args = kwargs.get('args', kwargs.get('tool_context', {}))
+        result = kwargs.get('tool_response', kwargs.get('result'))
+
+        # ツール名を取得（FunctionToolの場合は.funcから取得）
+        if hasattr(tool, 'func') and hasattr(tool.func, '__name__'):
+            tool_name = tool.func.__name__
+        elif hasattr(tool, '__name__'):
+            tool_name = tool.__name__
+        elif hasattr(tool, 'name'):
+            tool_name = tool.name
+        else:
+            tool_name = str(tool)
+
+        tool_call_info = {
+            "tool_name": tool_name,
+            "args": dict(args) if args and not isinstance(args, dict) else (args or {}),
+            "result": result
+        }
+        tool_calls.append(tool_call_info)
+        print("\n【ツール呼び出し検出】")
+        print(f"  ツール名: {tool_call_info['tool_name']}")
+        print(f"  引数: {tool_call_info['args']}")
+        print(f"  結果: {tool_call_info['result']}")
+        return result
 
     try:
         # エージェントのコールバックを設定（元のinstructionを使用）
@@ -221,7 +256,7 @@ def test_agent_with_adk_app(test_case_id: int = 1):
             description=root_agent.description,
             instruction=root_agent.instruction,  # 元のinstructionを使用（確認フェーズ含む）
             tools=root_agent.tools,
-            after_tool_callback=after_tool_callback
+            after_tool_callback=local_tool_callback  # ローカルコールバックを使用
         )
 
         # AdkAppでエージェントをラップ（トレーシングを無効化して警告を抑制）
@@ -382,37 +417,58 @@ def test_agent_with_adk_app(test_case_id: int = 1):
         return False
 
 
-def test_multiple_cases(num_tests: int = 3):
-    """複数ケースのテスト"""
+def test_multiple_cases(num_tests: int = 3, max_workers: int = 10):
+    """
+    複数ケースのテスト（並列実行対応）
+
+    Args:
+        num_tests: 実行するテストケース数
+        max_workers: 最大並列実行数（デフォルト10）
+    """
     print("\n\n" + "=" * 70)
-    print(f"複数ケーステスト（{num_tests}回実行）")
+    print(f"複数ケーステスト（{num_tests}回実行、最大{max_workers}並列）")
     print("=" * 70)
 
-    results = []
+    # 並列実行数を制限
+    actual_workers = min(max_workers, num_tests)
 
-    for i in range(num_tests):
-        print(f"\n\n{'=' * 70}")
-        print(f"テストケース {i + 1}/{num_tests}")
-        print(f"{'=' * 70}")
+    results = {}  # test_case_id -> result の辞書
 
-        result = test_agent_with_adk_app(test_case_id=i + 1)
-        results.append(result)
+    # ThreadPoolExecutorで並列実行
+    with ThreadPoolExecutor(max_workers=actual_workers) as executor:
+        # 全てのテストケースをサブミット
+        future_to_test_id = {
+            executor.submit(test_agent_with_adk_app, i + 1): i + 1
+            for i in range(num_tests)
+        }
 
-        if result is True:
-            print(f"\n✅ テストケース {i + 1}: 成功")
-        elif result is False:
-            print(f"\n❌ テストケース {i + 1}: 失敗")
-        else:
-            print(f"\n⚠️  テストケース {i + 1}: 判定不可")
+        # 完了したタスクから結果を取得
+        for future in as_completed(future_to_test_id):
+            test_id = future_to_test_id[future]
+            try:
+                result = future.result()
+                results[test_id] = result
+
+                if result is True:
+                    print(f"\n✅ テストケース {test_id}: 成功")
+                elif result is False:
+                    print(f"\n❌ テストケース {test_id}: 失敗")
+                else:
+                    print(f"\n⚠️  テストケース {test_id}: 判定不可")
+            except Exception as e:
+                print(f"\n❌ テストケース {test_id}: エラー - {e}")
+                results[test_id] = False
 
     # サマリー
     print("\n\n" + "=" * 70)
     print("テスト結果サマリー")
     print("=" * 70)
 
-    success_count = sum(1 for r in results if r is True)
-    failure_count = sum(1 for r in results if r is False)
-    unknown_count = sum(1 for r in results if r is None)
+    # 辞書の値から統計を取得
+    result_values = list(results.values())
+    success_count = sum(1 for r in result_values if r is True)
+    failure_count = sum(1 for r in result_values if r is False)
+    unknown_count = sum(1 for r in result_values if r is None)
 
     print(f"総テスト数: {len(results)}")
     print(f"成功: {success_count}")
@@ -440,7 +496,7 @@ def main():
     test_agent_with_adk_app()
 
     # 複数ケーステスト実行
-    final_result = test_multiple_cases(num_tests=2)
+    final_result = test_multiple_cases(num_tests=10)
 
     print("\n" + "=" * 70)
     print("最終結果")
