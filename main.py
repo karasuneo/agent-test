@@ -23,31 +23,21 @@ def test_tools():
 
     # テスト3: 【ステップ2】顧問先情報処理（完全一致）
     print("\n【テスト3】【ステップ2】顧問先情報処理 - 「株式会社青空」への自動入力")
-    result3 = step2_process_client_data(
-        client_name="株式会社青空",
-        operation="auto_input"
-    )
+    result3 = step2_process_client_data(client_name="株式会社青空")
     print(f"処理結果: {result3['message']}")
     print(f"検証: {result3['verified']}")
     print(f"詳細: {result3['details']}")
 
-    # テスト4: 【ステップ2】顧問先情報処理（部分一致、1件のみ）
-    print("\n【テスト4】【ステップ2】顧問先情報処理 - 「青空」で検索（部分一致）")
-    result4 = step2_process_client_data(
-        client_name="青空",
-        operation="update"
-    )
+    # テスト4: 【ステップ2】顧問先情報処理（完全一致検証）
+    print("\n【テスト4】【ステップ2】顧問先情報処理 - 「青空」で検索（完全一致なし）")
+    result4 = step2_process_client_data(client_name="青空")
     print(f"処理結果: {result4['message']}")
     print(f"検証: {result4['verified']}")
-    if result4['success'] and 'warning' in result4['details']:
-        print(f"警告: {result4['details']['warning']}")
+    print(f"成功: {result4['success']}")
 
     # テスト5: 【ステップ2】顧問先情報処理（存在しない顧問先）
     print("\n【テスト5】【ステップ2】顧問先情報処理 - 存在しない顧問先")
-    result5 = step2_process_client_data(
-        client_name="存在しない会社",
-        operation="auto_input"
-    )
+    result5 = step2_process_client_data(client_name="存在しない会社")
     print(f"処理結果: {result5['message']}")
     print(f"成功: {result5['success']}")
 

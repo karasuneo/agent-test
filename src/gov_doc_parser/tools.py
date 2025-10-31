@@ -44,8 +44,7 @@ def step1_get_client_info(client_name: str) -> dict[str, Any]:
 
 
 def step2_process_client_data(
-    client_name: str,
-    operation: str = "auto_input"
+    client_name: str
 ) -> dict[str, Any]:
     """
     【ステップ2】顧問先情報をもとに処理をするツール
@@ -53,18 +52,16 @@ def step2_process_client_data(
     ⚠️ 重要: このツールはstep1_get_client_infoの実行後にのみ使用してください
     ⚠️ 必ずstep1で取得した正確な顧問先名を使用してください
 
-    指定された顧問先に対して自動入力などの処理を実行します。
+    指定された顧問先に対して自動入力処理を実行します。
     実際の処理の前に、顧問先が正しいことを検証します。
 
     Args:
-        client_name: 処理対象の顧問先名（完全一致が推奨）
-        operation: 実行する操作（"auto_input", "update", "export" など）
+        client_name: 処理対象の顧問先名（完全一致が必須）
 
     Returns:
         dict: 処理結果
             - success: 処理の成功/失敗
             - client_name: 処理対象の顧問先名
-            - operation: 実行された操作
             - verified: 顧問先の検証結果
             - message: 処理結果のメッセージ
             - details: 処理の詳細情報
@@ -76,7 +73,6 @@ def step2_process_client_data(
         return {
             "success": False,
             "client_name": client_name,
-            "operation": operation,
             "verified": False,
             "message": f"顧問先「{client_name}」が見つかりません。完全一致する顧問先名を指定してください",
             "details": {
@@ -87,33 +83,17 @@ def step2_process_client_data(
 
     # 完全一致した場合
     verified_client = client_name
-    warning = None
 
-    # 操作の実行（シミュレーション）
+    # 自動入力処理の実行（シミュレーション）
     details = {
         "verified_client": verified_client,
         "timestamp": "2025-10-31T16:00:00+09:00",
     }
 
-    if warning:
-        details["warning"] = warning
-
-    operation_messages = {
-        "auto_input": f"顧問先「{verified_client}」への自動入力処理が完了しました",
-        "update": f"顧問先「{verified_client}」の情報更新が完了しました",
-        "export": f"顧問先「{verified_client}」のデータエクスポートが完了しました",
-    }
-
-    message = operation_messages.get(
-        operation,
-        f"顧問先「{verified_client}」の処理（{operation}）が完了しました"
-    )
-
     return {
         "success": True,
         "client_name": client_name,
-        "operation": operation,
         "verified": True,
-        "message": message,
+        "message": f"顧問先「{verified_client}」への自動入力処理が完了しました",
         "details": details
     }
