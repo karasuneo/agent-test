@@ -25,8 +25,7 @@ def test_tools():
     print("\n【テスト3】【ステップ2】顧問先情報処理 - 「株式会社青空」への自動入力")
     result3 = step2_process_client_data(
         client_name="株式会社青空",
-        operation="auto_input",
-        data={"form_type": "労働保険", "year": 2025}
+        operation="auto_input"
     )
     print(f"処理結果: {result3['message']}")
     print(f"検証: {result3['verified']}")

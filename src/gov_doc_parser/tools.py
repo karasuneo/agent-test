@@ -45,8 +45,7 @@ def step1_get_client_info(client_name: str) -> dict[str, Any]:
 
 def step2_process_client_data(
     client_name: str,
-    operation: str = "auto_input",
-    data: dict[str, Any] | None = None
+    operation: str = "auto_input"
 ) -> dict[str, Any]:
     """
     【ステップ2】顧問先情報をもとに処理をするツール
@@ -60,7 +59,6 @@ def step2_process_client_data(
     Args:
         client_name: 処理対象の顧問先名（完全一致が推奨）
         operation: 実行する操作（"auto_input", "update", "export" など）
-        data: 処理に必要な追加データ
 
     Returns:
         dict: 処理結果
@@ -95,7 +93,6 @@ def step2_process_client_data(
     details = {
         "verified_client": verified_client,
         "timestamp": "2025-10-31T16:00:00+09:00",
-        "data_processed": data if data else {},
     }
 
     if warning:
