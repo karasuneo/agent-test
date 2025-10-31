@@ -2,12 +2,59 @@
 
 import random
 import uuid
+import warnings
 from companies_12000_list import companies
 from src.gov_doc_parser import root_agent
 from vertexai.preview import reasoning_engines
 
+# 警告を非表示にする
+warnings.filterwarnings("ignore")
+
 # ツール呼び出しを記録するグローバル変数
 tool_calls = []
+
+
+def format_agent_response(response: dict) -> str:
+    """
+    エージェント応答から必須情報のみを抽出して整形
+
+    必須情報:
+    - author: エージェント名
+    - text: テキスト応答
+    - function_call: ツール呼び出し（name, args）
+    - function_response: ツール応答結果
+    """
+    if not isinstance(response, dict):
+        return str(response)
+
+    lines = []
+
+    # author（エージェント名）
+    if 'author' in response:
+        lines.append(f"エージェント: {response['author']}")
+
+    # content.parts の解析
+    content = response.get('content', {})
+    parts = content.get('parts', [])
+
+    for part in parts:
+        # テキスト応答
+        if 'text' in part:
+            lines.append(f"応答: {part['text']}")
+
+        # ツール呼び出し
+        if 'function_call' in part:
+            fc = part['function_call']
+            lines.append(f"ツール呼び出し: {fc.get('name', 'unknown')}")
+            lines.append(f"  引数: {fc.get('args', {})}")
+
+        # ツール応答
+        if 'function_response' in part:
+            fr = part['function_response']
+            lines.append(f"ツール応答: {fr.get('name', 'unknown')}")
+            lines.append(f"  結果: {fr.get('response', {})}")
+
+    return "\n".join(lines) if lines else str(response)
 
 
 def after_tool_callback(tool, **kwargs):
@@ -82,10 +129,10 @@ def test_agent_with_adk_app():
             after_tool_callback=after_tool_callback
         )
 
-        # AdkAppでエージェントをラップ
+        # AdkAppでエージェントをラップ（トレーシングを無効化して警告を抑制）
         app = reasoning_engines.AdkApp(
             agent=agent_with_callback,
-            enable_tracing=True,
+            enable_tracing=False,
         )
 
         print("\n【エージェント実行開始】")
@@ -99,18 +146,19 @@ def test_agent_with_adk_app():
         # メッセージを送信
         response_stream = app.stream_query(session_id=session_id, user_id=user_id, message=user_message)
 
-        # ストリーム結果を収集
-        response_parts = []
+        # ストリーム結果を収集（辞書形式を保持）
+        responses = []
         for chunk in response_stream:
-            response_parts.append(str(chunk))
-
-        response = "".join(response_parts)
+            responses.append(chunk)
 
         print("\n【エージェント応答（1回目）】")
-        print(f"応答: {response}")
+        for idx, response in enumerate(responses):
+            print(f"\n--- 応答チャンク {idx + 1} ---")
+            print(format_agent_response(response))
 
         # エージェントが確認を求めているかチェック（「よろしいですか」などの文言を含む）
-        if "よろしいですか" in str(response) or "よろしいでしょうか" in str(response):
+        all_responses_text = " ".join([str(r) for r in responses])
+        if "よろしいですか" in all_responses_text or "よろしいでしょうか" in all_responses_text:
             print("\n【確認フェーズ検出】")
             print("エージェントが確認を求めています。自動的に承認します...")
 
@@ -121,7 +169,7 @@ def test_agent_with_adk_app():
                 "お願い",
                 "大丈夫",
                 "ok",
-                "うん", 
+                "うん",
                 "はい、大丈夫です",
                 "はい、進めてください",
                 "問題ありません",
@@ -132,15 +180,15 @@ def test_agent_with_adk_app():
 
             response_stream2 = app.stream_query(session_id=session_id, user_id=user_id, message=confirmation_message)
 
-            # 2回目の応答を収集
-            response_parts2 = []
+            # 2回目の応答を収集（辞書形式を保持）
+            responses2 = []
             for chunk in response_stream2:
-                response_parts2.append(str(chunk))
-
-            response2 = "".join(response_parts2)
+                responses2.append(chunk)
 
             print("\n【エージェント応答（2回目：確認後）】")
-            print(f"応答: {response2}")
+            for idx, response in enumerate(responses2):
+                print(f"\n--- 応答チャンク {idx + 1} ---")
+                print(format_agent_response(response))
 
         # ツール呼び出しの検証
         print("\n【ツール呼び出し履歴の検証】")
