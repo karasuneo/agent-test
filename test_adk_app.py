@@ -496,7 +496,7 @@ def main():
     test_agent_with_adk_app()
 
     # 複数ケーステスト実行
-    final_result = test_multiple_cases(num_tests=10)
+    final_result = test_multiple_cases(num_tests=10000, max_workers=5)
 
     print("\n" + "=" * 70)
     print("最終結果")
