@@ -1,0 +1,137 @@
+"""顧問先情報取得・処理ツール"""
+
+from typing import Any
+import sys
+from pathlib import Path
+
+# プロジェクトルートをパスに追加
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from companies_12000_list import companies
+
+
+def get_client_info(client_name: str) -> dict[str, Any]:
+    """
+    顧問先情報取得ツール
+
+    顧問先事業所リストから指定された名前に一致する顧問先を検索します。
+    部分一致検索を行い、複数の候補がある場合は全て返します。
+
+    Args:
+        client_name: 検索する顧問先名（部分一致可）
+
+    Returns:
+        dict: 検索結果
+            - success: 検索の成功/失敗
+            - matches: 一致した顧問先のリスト
+            - count: 一致件数
+            - query: 検索クエリ
+    """
+    # 部分一致検索
+    matches = [company for company in companies if client_name in company]
+
+    result = {
+        "success": len(matches) > 0,
+        "matches": matches,
+        "count": len(matches),
+        "query": client_name,
+    }
+
+    return result
+
+
+def process_client_data(
+    client_name: str,
+    operation: str = "auto_input",
+    data: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """
+    顧問先情報をもとに処理をするツール
+
+    指定された顧問先に対して自動入力などの処理を実行します。
+    実際の処理の前に、顧問先が正しいことを検証します。
+
+    Args:
+        client_name: 処理対象の顧問先名（完全一致が推奨）
+        operation: 実行する操作（"auto_input", "update", "export" など）
+        data: 処理に必要な追加データ
+
+    Returns:
+        dict: 処理結果
+            - success: 処理の成功/失敗
+            - client_name: 処理対象の顧問先名
+            - operation: 実行された操作
+            - verified: 顧問先の検証結果
+            - message: 処理結果のメッセージ
+            - details: 処理の詳細情報
+    """
+    # 顧問先の存在確認と検証
+    exact_match = client_name in companies
+    partial_matches = [company for company in companies if client_name in company]
+
+    if not exact_match and len(partial_matches) == 0:
+        return {
+            "success": False,
+            "client_name": client_name,
+            "operation": operation,
+            "verified": False,
+            "message": f"顧問先「{client_name}」が見つかりません",
+            "details": {
+                "error": "client_not_found",
+                "suggestions": []
+            }
+        }
+
+    # 完全一致しない場合は警告
+    if not exact_match and len(partial_matches) > 0:
+        if len(partial_matches) == 1:
+            # 候補が1件のみの場合は処理を続行
+            verified_client = partial_matches[0]
+            warning = f"部分一致で「{verified_client}」を使用します"
+        else:
+            # 複数候補がある場合はエラー
+            return {
+                "success": False,
+                "client_name": client_name,
+                "operation": operation,
+                "verified": False,
+                "message": f"顧問先「{client_name}」に複数の候補があります。正確な名前を指定してください",
+                "details": {
+                    "error": "multiple_matches",
+                    "suggestions": partial_matches[:10]  # 最大10件まで表示
+                }
+            }
+    else:
+        verified_client = client_name
+        warning = None
+
+    # 操作の実行（シミュレーション）
+    details = {
+        "verified_client": verified_client,
+        "timestamp": "2025-10-31T16:00:00+09:00",
+        "data_processed": data if data else {},
+    }
+
+    if warning:
+        details["warning"] = warning
+
+    operation_messages = {
+        "auto_input": f"顧問先「{verified_client}」への自動入力処理が完了しました",
+        "update": f"顧問先「{verified_client}」の情報更新が完了しました",
+        "export": f"顧問先「{verified_client}」のデータエクスポートが完了しました",
+    }
+
+    message = operation_messages.get(
+        operation,
+        f"顧問先「{verified_client}」の処理（{operation}）が完了しました"
+    )
+
+    return {
+        "success": True,
+        "client_name": client_name,
+        "operation": operation,
+        "verified": True,
+        "message": message,
+        "details": details
+    }
