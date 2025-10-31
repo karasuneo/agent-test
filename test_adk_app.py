@@ -1,8 +1,11 @@
 """vertexai.preview.reasoning_engines.AdkAppを使ったroot_agentテスト"""
 
+import csv
 import random
 import uuid
 import warnings
+from datetime import datetime
+from pathlib import Path
 from companies_12000_list import companies
 from src.gov_doc_parser import root_agent
 from vertexai.preview import reasoning_engines
@@ -12,6 +15,91 @@ warnings.filterwarnings("ignore")
 
 # ツール呼び出しを記録するグローバル変数
 tool_calls = []
+
+# CSVファイルのパス
+CSV_FILE = Path(__file__).parent / "test_results.csv"
+
+
+def save_test_result_to_csv(
+    test_case_id: int,
+    expected_client_name: str,
+    step1_called: bool,
+    step1_client_name: str,
+    step1_result: dict,
+    step2_called: bool,
+    step2_client_name: str,
+    step2_result: dict,
+    verification_result: str,
+    confirmation_message: str = "",
+    error: str = ""
+):
+    """
+    テスト結果をCSVファイルに1行追記
+
+    Args:
+        test_case_id: テストケース番号
+        expected_client_name: 期待される顧問先名（ユーザー入力）
+        step1_called: step1が呼び出されたか
+        step1_client_name: step1に渡された顧問先名
+        step1_result: step1の結果辞書
+        step2_called: step2が呼び出されたか
+        step2_client_name: step2に渡された顧問先名
+        step2_result: step2の結果辞書
+        verification_result: 検証結果（一致/不一致/判定不可）
+        confirmation_message: 承認メッセージ
+        error: エラーメッセージ
+    """
+    # CSVヘッダー
+    headers = [
+        "test_case_id",
+        "timestamp",
+        "expected_client_name",
+        "step1_called",
+        "step1_client_name",
+        "step1_success",
+        "step1_match_count",
+        "step2_called",
+        "step2_client_name",
+        "step2_success",
+        "step2_verified",
+        "verification_result",
+        "confirmation_message",
+        "error"
+    ]
+
+    # ファイルが存在しない場合はヘッダーを書き込む
+    file_exists = CSV_FILE.exists()
+
+    # データ行を作成
+    row = {
+        "test_case_id": test_case_id,
+        "timestamp": datetime.now().isoformat(),
+        "expected_client_name": expected_client_name,
+        "step1_called": step1_called,
+        "step1_client_name": step1_client_name,
+        "step1_success": step1_result.get("success", False) if step1_result else False,
+        "step1_match_count": step1_result.get("count", 0) if step1_result else 0,
+        "step2_called": step2_called,
+        "step2_client_name": step2_client_name,
+        "step2_success": step2_result.get("success", False) if step2_result else False,
+        "step2_verified": step2_result.get("verified", False) if step2_result else False,
+        "verification_result": verification_result,
+        "confirmation_message": confirmation_message,
+        "error": error
+    }
+
+    # CSVファイルに追記
+    with open(CSV_FILE, mode='a', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=headers)
+
+        # ヘッダーを書き込む（ファイルが新規作成の場合のみ）
+        if not file_exists:
+            writer.writeheader()
+
+        # データ行を書き込む
+        writer.writerow(row)
+
+    print(f"\n✅ テスト結果をCSVに記録しました: {CSV_FILE}")
 
 
 def format_agent_response(response: dict) -> str:
@@ -86,7 +174,7 @@ def after_tool_callback(tool, **kwargs):
     return result
 
 
-def test_agent_with_adk_app():
+def test_agent_with_adk_app(test_case_id: int = 1):
     """
     AdkAppを使ったエージェントテスト
 
@@ -95,6 +183,9 @@ def test_agent_with_adk_app():
     - step1_get_client_infoが呼び出される
     - step2_process_client_dataが呼び出される
     - step2に渡される値が最初のユーザー入力値Xと一致するか
+
+    Args:
+        test_case_id: テストケース番号（CSV記録用）
     """
     global tool_calls
     tool_calls = []
@@ -115,6 +206,10 @@ def test_agent_with_adk_app():
 
     print("\n【ユーザー入力】")
     print(f"メッセージ: {user_message}")
+
+    # CSV記録用の変数を初期化
+    confirmation_message = ""
+    error_message = ""
 
     try:
         # エージェントのコールバックを設定（元のinstructionを使用）
@@ -175,7 +270,7 @@ def test_agent_with_adk_app():
                 "問題ありません",
                 "⭕️"
             ]
-            confirmation_message = random.choice(confirmation_messages)
+            confirmation_message = random.choice(confirmation_messages)  # CSV記録用に保存
             print(f"承認メッセージ: 「{confirmation_message}」")
 
             response_stream2 = app.stream_query(session_id=session_id, user_id=user_id, message=confirmation_message)
@@ -196,7 +291,10 @@ def test_agent_with_adk_app():
 
         step1_called = False
         step2_called = False
-        step2_client_name = None
+        step1_client_name = ""
+        step2_client_name = ""
+        step1_result = None
+        step2_result = None
 
         for idx, call in enumerate(tool_calls):
             print(f"\nツール呼び出し {idx + 1}:")
@@ -205,11 +303,14 @@ def test_agent_with_adk_app():
 
             if 'step1_get_client_info' in call['tool_name']:
                 step1_called = True
+                step1_client_name = call['args'].get('client_name', '')
+                step1_result = call['result']
                 print("  ✅ step1_get_client_info が呼び出されました")
 
             elif 'step2_process_client_data' in call['tool_name']:
                 step2_called = True
                 step2_client_name = call['args'].get('client_name', '')
+                step2_result = call['result']
                 print("  ✅ step2_process_client_data が呼び出されました")
 
         # 検証結果
