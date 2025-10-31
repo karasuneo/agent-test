@@ -11,15 +11,17 @@ sys.path.insert(0, str(project_root))
 from companies_12000_list import companies
 
 
-def get_client_info(client_name: str) -> dict[str, Any]:
+def step1_get_client_info(client_name: str) -> dict[str, Any]:
     """
-    顧問先情報取得ツール
+    【ステップ1】顧問先情報取得ツール
 
-    顧問先事業所リストから指定された名前に一致する顧問先を検索します。
-    部分一致検索を行い、複数の候補がある場合は全て返します。
+    ⚠️ 重要: このツールは必ずstep2_process_client_dataの前に実行してください
+
+    顧問先事業所リストから指定された名前に完全一致する顧問先を検索します。
+    完全一致検索を行い、該当する顧問先を全て返します。
 
     Args:
-        client_name: 検索する顧問先名（部分一致可）
+        client_name: 検索する顧問先名（完全一致）
 
     Returns:
         dict: 検索結果
@@ -28,8 +30,8 @@ def get_client_info(client_name: str) -> dict[str, Any]:
             - count: 一致件数
             - query: 検索クエリ
     """
-    # 部分一致検索
-    matches = [company for company in companies if client_name in company]
+    # 完全一致検索
+    matches = [company for company in companies if client_name == company]
 
     result = {
         "success": len(matches) > 0,
@@ -41,13 +43,16 @@ def get_client_info(client_name: str) -> dict[str, Any]:
     return result
 
 
-def process_client_data(
+def step2_process_client_data(
     client_name: str,
     operation: str = "auto_input",
     data: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """
-    顧問先情報をもとに処理をするツール
+    【ステップ2】顧問先情報をもとに処理をするツール
+
+    ⚠️ 重要: このツールはstep1_get_client_infoの実行後にのみ使用してください
+    ⚠️ 必ずstep1で取得した正確な顧問先名を使用してください
 
     指定された顧問先に対して自動入力などの処理を実行します。
     実際の処理の前に、顧問先が正しいことを検証します。
@@ -66,45 +71,25 @@ def process_client_data(
             - message: 処理結果のメッセージ
             - details: 処理の詳細情報
     """
-    # 顧問先の存在確認と検証
+    # 顧問先の存在確認と検証（完全一致）
     exact_match = client_name in companies
-    partial_matches = [company for company in companies if client_name in company]
 
-    if not exact_match and len(partial_matches) == 0:
+    if not exact_match:
         return {
             "success": False,
             "client_name": client_name,
             "operation": operation,
             "verified": False,
-            "message": f"顧問先「{client_name}」が見つかりません",
+            "message": f"顧問先「{client_name}」が見つかりません。完全一致する顧問先名を指定してください",
             "details": {
                 "error": "client_not_found",
-                "suggestions": []
+                "note": "完全一致検索を使用しています"
             }
         }
 
-    # 完全一致しない場合は警告
-    if not exact_match and len(partial_matches) > 0:
-        if len(partial_matches) == 1:
-            # 候補が1件のみの場合は処理を続行
-            verified_client = partial_matches[0]
-            warning = f"部分一致で「{verified_client}」を使用します"
-        else:
-            # 複数候補がある場合はエラー
-            return {
-                "success": False,
-                "client_name": client_name,
-                "operation": operation,
-                "verified": False,
-                "message": f"顧問先「{client_name}」に複数の候補があります。正確な名前を指定してください",
-                "details": {
-                    "error": "multiple_matches",
-                    "suggestions": partial_matches[:10]  # 最大10件まで表示
-                }
-            }
-    else:
-        verified_client = client_name
-        warning = None
+    # 完全一致した場合
+    verified_client = client_name
+    warning = None
 
     # 操作の実行（シミュレーション）
     details = {
