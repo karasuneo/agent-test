@@ -20,3 +20,8 @@ dependencies = [
     "jaconv>=0.4.0",
 ]
 
+[dependency-groups]
+dev = [
+    "ruff>=0.14.3",
+]
+

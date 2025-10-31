@@ -32,7 +32,7 @@ def after_tool_callback(tool, **kwargs):
         "result": result
     }
     tool_calls.append(tool_call_info)
-    print(f"\n【ツール呼び出し検出】")
+    print("\n【ツール呼び出し検出】")
     print(f"  ツール名: {tool_call_info['tool_name']}")
     print(f"  引数: {tool_call_info['args']}")
     print(f"  結果: {tool_call_info['result']}")
@@ -59,14 +59,14 @@ def test_agent_with_adk_app():
     # ランダムに顧問先を選択
     random_client = random.choice(companies)
 
-    print(f"\n【初期設定】")
+    print("\n【初期設定】")
     print(f"ユーザーが入力する顧問先名（顧問先X）: 「{random_client}」")
-    print(f"💡 この値がstep2に渡されるべき値です")
+    print("💡 この値がstep2に渡されるべき値です")
 
     # ユーザーの入力をシミュレーション
     user_message = f"顧問先「{random_client}」の労働保険申告を自動入力してください"
 
-    print(f"\n【ユーザー入力】")
+    print("\n【ユーザー入力】")
     print(f"メッセージ: {user_message}")
 
     try:
@@ -88,7 +88,7 @@ def test_agent_with_adk_app():
             enable_tracing=True,
         )
 
-        print(f"\n【エージェント実行開始】")
+        print("\n【エージェント実行開始】")
         print("root_agentにメッセージを送信します...")
 
         # セッションを作成（UUID形式）
@@ -106,13 +106,13 @@ def test_agent_with_adk_app():
 
         response = "".join(response_parts)
 
-        print(f"\n【エージェント応答（1回目）】")
+        print("\n【エージェント応答（1回目）】")
         print(f"応答: {response}")
 
         # エージェントが確認を求めているかチェック（「よろしいですか」などの文言を含む）
         if "よろしいですか" in str(response) or "よろしいでしょうか" in str(response):
-            print(f"\n【確認フェーズ検出】")
-            print(f"エージェントが確認を求めています。自動的に承認します...")
+            print("\n【確認フェーズ検出】")
+            print("エージェントが確認を求めています。自動的に承認します...")
 
             # 承認メッセージのバリエーション（10種類）
             confirmation_messages = [
@@ -125,6 +125,7 @@ def test_agent_with_adk_app():
                 "はい、大丈夫です",
                 "はい、進めてください",
                 "問題ありません",
+                "⭕️"
             ]
             confirmation_message = random.choice(confirmation_messages)
             print(f"承認メッセージ: 「{confirmation_message}」")
@@ -138,11 +139,11 @@ def test_agent_with_adk_app():
 
             response2 = "".join(response_parts2)
 
-            print(f"\n【エージェント応答（2回目：確認後）】")
+            print("\n【エージェント応答（2回目：確認後）】")
             print(f"応答: {response2}")
 
         # ツール呼び出しの検証
-        print(f"\n【ツール呼び出し履歴の検証】")
+        print("\n【ツール呼び出し履歴の検証】")
         print(f"総ツール呼び出し数: {len(tool_calls)}")
 
         step1_called = False
@@ -156,32 +157,32 @@ def test_agent_with_adk_app():
 
             if 'step1_get_client_info' in call['tool_name']:
                 step1_called = True
-                print(f"  ✅ step1_get_client_info が呼び出されました")
+                print("  ✅ step1_get_client_info が呼び出されました")
 
             elif 'step2_process_client_data' in call['tool_name']:
                 step2_called = True
                 step2_client_name = call['args'].get('client_name', '')
-                print(f"  ✅ step2_process_client_data が呼び出されました")
+                print("  ✅ step2_process_client_data が呼び出されました")
 
         # 検証結果
-        print(f"\n【検証結果】")
+        print("\n【検証結果】")
         print(f"step1呼び出し: {'✅' if step1_called else '❌'}")
         print(f"step2呼び出し: {'✅' if step2_called else '❌'}")
 
         if step2_called and step2_client_name:
-            print(f"\n⚠️ 【最重要検証ポイント】")
+            print("\n⚠️ 【最重要検証ポイント】")
             print(f"  最初のユーザー入力: 「{random_client}」")
             print(f"  step2に渡された値: 「{step2_client_name}」")
 
             if step2_client_name == random_client:
-                print(f"  ✅ 一致: 顧問先情報が正しく渡されています！")
+                print("  ✅ 一致: 顧問先情報が正しく渡されています！")
                 return True
             else:
-                print(f"  ❌ 不一致: 顧問先情報が正しく渡されていません！")
+                print("  ❌ 不一致: 顧問先情報が正しく渡されていません！")
                 return False
         else:
-            print(f"\n⚠️ step2が呼び出されませんでした")
-            print(f"エージェントが指示通りに動作しなかった可能性があります")
+            print("\n⚠️ step2が呼び出されませんでした")
+            print("エージェントが指示通りに動作しなかった可能性があります")
             return None
 
     except Exception as e:

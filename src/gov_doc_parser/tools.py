@@ -8,7 +8,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from companies_12000_list import companies
+from companies_12000_list import companies  # noqa: E402
 
 
 def step1_get_client_info(client_name: str) -> dict[str, Any]:
