@@ -70,42 +70,14 @@ def test_agent_with_adk_app():
     print(f"メッセージ: {user_message}")
 
     try:
-        # テスト用のエージェント指示（ユーザー確認なしで自動実行）
-        test_instruction = """
-あなたは社労士の業務をサポートするAIエージェントです。
-
-【重要】ツールの呼び出し順序を厳守し、自動的に処理を完了してください:
-
-## 必須の実行フロー
-
-### ステップ1: 顧問先情報の取得（必須）
-1. ユーザーから顧問先名が提供されたら、**必ず最初に** step1_get_client_info ツールを実行してください
-2. 検索結果を確認してください
-
-### ステップ2: 顧問先情報の処理（必須）
-1. step1で1件以上の一致があった場合、**自動的に** step2_process_client_data を実行してください
-2. **step1で取得した正確な顧問先名（matchesの最初の要素）**を使用してください
-3. ユーザーの確認を求めずに、自動的に実行してください
-4. operation は "auto_input" を使用してください
-
-## 禁止事項
-❌ step1を実行せずに、いきなりstep2を実行すること
-❌ step1の検索結果を無視して、ユーザーの入力をそのままstep2に渡すこと
-❌ ユーザーに確認を求めること（自動実行モード）
-
-## 必須の確認事項
-✅ step2に渡す顧問先名は、step1の検索結果（matchesの最初の要素）から取得した正確な名前を使用してください
-✅ 処理結果は明確に報告してください
-"""
-
-        # エージェントのコールバックを設定
+        # エージェントのコールバックを設定（元のinstructionを使用）
         from google.adk.agents import Agent
 
         agent_with_callback = Agent(
             name=root_agent.name,
             model=root_agent.model,
             description=root_agent.description,
-            instruction=test_instruction,  # テスト用の指示を使用
+            instruction=root_agent.instruction,  # 元のinstructionを使用（確認フェーズ含む）
             tools=root_agent.tools,
             after_tool_callback=after_tool_callback
         )
@@ -134,8 +106,27 @@ def test_agent_with_adk_app():
 
         response = "".join(response_parts)
 
-        print(f"\n【エージェント応答】")
+        print(f"\n【エージェント応答（1回目）】")
         print(f"応答: {response}")
+
+        # エージェントが確認を求めているかチェック（「よろしいですか」などの文言を含む）
+        if "よろしいですか" in str(response) or "よろしいでしょうか" in str(response):
+            print(f"\n【確認フェーズ検出】")
+            print(f"エージェントが確認を求めています。自動的に承認します...")
+
+            # 承認メッセージを送信
+            confirmation_message = "はい、お願いします"
+            response_stream2 = app.stream_query(session_id=session_id, user_id=user_id, message=confirmation_message)
+
+            # 2回目の応答を収集
+            response_parts2 = []
+            for chunk in response_stream2:
+                response_parts2.append(str(chunk))
+
+            response2 = "".join(response_parts2)
+
+            print(f"\n【エージェント応答（2回目：確認後）】")
+            print(f"応答: {response2}")
 
         # ツール呼び出しの検証
         print(f"\n【ツール呼び出し履歴の検証】")
