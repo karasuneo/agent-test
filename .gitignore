@@ -217,3 +217,9 @@ __marimo__/
 
 # Test results
 test_results.csv
+
+# macOS
+.DS_Store
+
+# Analysis results
+sampled_results.csv
