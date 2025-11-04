@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from companies_12000_list import companies
-from src.gov_doc_parser import root_agent
+from src.test_agent import root_agent
 from vertexai.preview import reasoning_engines
 
 # 警告を非表示にする

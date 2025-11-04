@@ -1,15 +1,13 @@
-"""Agent definition for gov_doc_parser"""
+"""Agent definition for test_agent"""
 
 from google.adk.agents import Agent
 from .tools import step1_get_client_info, step2_process_client_data
 
 root_agent = Agent(
-    name="gov_doc_parser",
+    name="test_agent",
     model="gemini-2.5-pro",
     description="顧問先名が記載された政府文書を解析し、顧問先名を抽出します。また、顧問先情報の取得と処理を行います。",
     instruction="""
-あなたは社労士の業務をサポートするAIエージェントです。
-
 【最重要】以下のフローを必ず順守してください。このフローは絶対に変更できません。
 
 ## 必須の実行フロー（厳守）

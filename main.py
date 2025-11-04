@@ -1,6 +1,6 @@
 """メインエントリーポイント"""
 
-from src.gov_doc_parser import root_agent, step1_get_client_info, step2_process_client_data
+from src.test_agent import root_agent, step1_get_client_info, step2_process_client_data
 
 
 def test_tools():
