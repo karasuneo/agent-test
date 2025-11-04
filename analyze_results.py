@@ -89,7 +89,7 @@ def analyze_step2_called_cases(sample_size: int = 5000):
 
     # 不一致ケースの詳細表示
     if mismatch_cases:
-        print(f"\n不一致ケース（最初の10件）:")
+        print("\n不一致ケース（最初の10件）:")
         for i, case in enumerate(mismatch_cases[:10], 1):
             print(f"\n{i}. テストケースID: {case['test_case_id']}")
             print(f"   expected_client_name: 「{case['expected']}」")
